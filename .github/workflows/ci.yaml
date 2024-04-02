@@ -1,0 +1,35 @@
+name: Run Tests (Group Classes Service)
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      QUARKUS_ARTEMIS_URL: tcp://localhost:61616
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Start MongoDB
+        uses: supercharge/mongodb-github-action@1.10.0
+        with:
+          mongodb-version: 7.0.6
+
+      - name: Start Artemis Broker
+        run: docker run --name artemis-broker -d -p 61616:61616 -p 8161:8161 vromero/activemq-artemis
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build and test with Maven
+        run: mvn -B clean install
