@@ -4,7 +4,11 @@ import io.quarkus.mongodb.panache.reactive.ReactivePanacheMongoRepository;
 import io.smallrye.mutiny.Uni;
 import ita.orderservice.model.Order;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.jms.JMSContext;
+import jakarta.jms.Queue;
 import jakarta.ws.rs.core.Response;
+import jms.Sender;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +17,9 @@ import org.slf4j.LoggerFactory;
 public class OrderRepository implements ReactivePanacheMongoRepository<Order> {
 
     private static final Logger logger = LoggerFactory.getLogger(OrderRepository.class);
+
+    @Inject
+    Sender sender;
 
     public Uni<Void> addOrder(String clientName, String startDate, String endDate, String phoneNumber, String insurance, String email) {
         Order order = new Order();
@@ -24,6 +31,13 @@ public class OrderRepository implements ReactivePanacheMongoRepository<Order> {
         order.setEmail(email);
         return order.persist().replaceWithVoid().onItem().transform(ignored -> {
             String logMessage = "New order added by client: " + clientName;
+            try (JMSContext context = sender.getContext()) {
+                Queue queue = context.createQueue("Orders queue");
+                context.createProducer().send(queue, logMessage);
+                logger.info(logMessage);
+            } catch (Exception e) {
+                logger.error("Failed to send log message", e);
+            }
             return null;
         }).onFailure().invoke(throwable -> logger.error("Failed to add new order", throwable)).replaceWithVoid();
     }
@@ -31,6 +45,13 @@ public class OrderRepository implements ReactivePanacheMongoRepository<Order> {
     public Uni<Response> getAllOrders() {
         return findAll().list().onItem().transformToUni(orders -> {
             String logMessage = "Retrieved all orders";
+            try (JMSContext context = sender.getContext()) {
+                Queue queue = context.createQueue("Orders queue");
+                context.createProducer().send(queue, logMessage);
+                logger.info(logMessage);
+            } catch (Exception e) {
+                logger.error("Failed to send log message", e);
+            }
             if (orders.isEmpty()) {
                 return Uni.createFrom().item(Response.status(Response.Status.NOT_FOUND).entity("No orders found").build());
             } else {
@@ -46,6 +67,13 @@ public class OrderRepository implements ReactivePanacheMongoRepository<Order> {
         ObjectId objectId = new ObjectId(id);
         return findById(objectId).onItem().transformToUni(order -> {
             String logMessage = "Retrieved order by id: " + id;
+            try (JMSContext context = sender.getContext()) {
+                Queue queue = context.createQueue("Orders queue");
+                context.createProducer().send(queue, logMessage);
+                logger.info(logMessage);
+            } catch (Exception e) {
+                logger.error("Failed to send log message", e);
+            }
             if (order != null) {
                 return Uni.createFrom().item(Response.ok(order).build());
             } else {
@@ -62,6 +90,13 @@ public class OrderRepository implements ReactivePanacheMongoRepository<Order> {
         return deleteById(objectId).replaceWithVoid()
                 .onItem().invoke(ignored -> {
                     String logMessage = "Deleted order with id: " + id;
+                    try (JMSContext context = sender.getContext()) {
+                        Queue queue = context.createQueue("Orders queue");
+                        context.createProducer().send(queue, logMessage);
+                        logger.info(logMessage);
+                    } catch (Exception e) {
+                        logger.error("Failed to send log message", e);
+                    }
                 })
                 .onFailure().invoke(throwable -> logger.error("Failed to delete order with id: " + id, throwable));
     }
@@ -80,6 +115,13 @@ public class OrderRepository implements ReactivePanacheMongoRepository<Order> {
                         return order.update().replaceWithVoid()
                                 .onItem().invoke(ignored -> {
                                     String logMessage = "Updated order with id: " + id;
+                                    try (JMSContext context = sender.getContext()) {
+                                        Queue queue = context.createQueue("Orders queue");
+                                        context.createProducer().send(queue, logMessage);
+                                        logger.info(logMessage);
+                                    } catch (Exception e) {
+                                        logger.error("Failed to send log message", e);
+                                    }
                                 });
                     })
                     .onFailure().recoverWithNull();
