@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   order-service:
-    image: ivanicov/order-service:1.0.1
+    image: ivanicov/order-service:1.0.3
     ports:
       - "8080:8080"
     depends_on:
@@ -19,11 +19,14 @@ services:
       - mongo-data:/data/db
 
   artemis:
-    image: vromero/activemq-artemis:latest
+    image: apache/activemq-artemis:2.30.0-alpine
     ports:
       - "8161:8161"
       - "61616:61616"
       - "5445:5445"
+    environment:
+      AMQ_USER: "artemis"
+      AMQ_PASSWORD: "artemis"
 
 volumes:
   mongo-data:
