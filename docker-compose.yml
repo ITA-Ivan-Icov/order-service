@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  order-service:
+    image: ivanicov/order-service:1.0.1
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mongo_db
+      - artemis
+    environment:
+      QUARKUS_ARTEMIS_URL: tcp://artemis:61616
+
+  mongo_db:
+    image: mongo:7.0.6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  artemis:
+    image: vromero/activemq-artemis:latest
+    ports:
+      - "8161:8161"
+      - "61616:61616"
+      - "5445:5445"
+
+volumes:
+  mongo-data:
